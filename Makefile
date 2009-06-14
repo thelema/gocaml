@@ -2,11 +2,12 @@ OCAMLC=ocamlc
 OCAMLOPT=ocamlopt
 OCAMLDEP=ocamldep
 INCLUDES=
-OCAMLFLAGS=$(INCLUDES)  -w A
+OCAMLFLAGS=$(INCLUDES)  -w A -g 
+
 OCAMLOPTFLAGS=$(INCLUDES) 
 
-MAIN_OBJS= options.cmo board.cmo rawgmp.cmo gmp.cmo \
-	   gui.cmo history.cmo handicap.cmo main.cmo 
+MAIN_OBJS= global.cmo board.cmo rawgmp.cmo history.cmo gmp.cmo \
+	   gui.cmo main.cmo 
 
 all : .depend gocaml
 

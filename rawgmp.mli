@@ -1,4 +1,5 @@
 exception GmpParseFailed
+open Global
 
 type gmp_query =
     QueryGame
@@ -22,7 +23,7 @@ type gmp_command =
     QueryExtendedCmd of int |
     QueryCmd of gmp_query |
     AnswerCmd of int |
-    MoveCmd of Board.color * int |
+    MoveCmd of color * int |
     TakebackMoveCmd of int
 
 type raw_gmp_message = 

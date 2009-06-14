@@ -1,3 +1,4 @@
+open Global
 (* In log, lsn and rsn are local seqn and remote seqn.
 *)
 
@@ -36,7 +37,7 @@ type gmp_command =
     QueryExtendedCmd of int |
     QueryCmd of gmp_query |
     AnswerCmd of int |
-    MoveCmd of Board.color * int |
+    MoveCmd of color * int |
     TakebackMoveCmd of int
 ;;
 
@@ -97,8 +98,8 @@ let extract_query value =
 
 let color_of_move value =
   if (value land 0x200) = 0
-  then Board.Black
-  else Board.White
+  then `Black
+  else `White
 
 ;;
 
@@ -162,11 +163,11 @@ let command_to_string cmd =
     OkCmd -> "Ok"
   | DenyCmd -> "Deny"
   | NewGameCmd -> "New game"
-  | QueryExtendedCmd c -> "Query for extended command support"
+  | QueryExtendedCmd _ -> "Query for extended command support"
   | QueryCmd q -> "Query for " ^ (gmp_query_to_string q)
   | AnswerCmd i -> "Answer of " ^ (string_of_int i)
-  | MoveCmd (Board.Black,i) -> "Black move at " ^ (string_of_int i)
-  | MoveCmd (Board.White, i) -> "White move at " ^ (string_of_int i)
+  | MoveCmd (`Black,i) -> "Black move at " ^ (string_of_int i)
+  | MoveCmd (`White, i) -> "White move at " ^ (string_of_int i)
   | TakebackMoveCmd n -> "Take back " ^ (string_of_int n) ^ " moves"
 ;;
 
@@ -207,23 +208,23 @@ let add_to_log s =
 ;;
 
 let handle_talk_text buffer n =
-  if n > 4 then begin
-    let text = String.sub buffer
-	4 (n-4) in
-    print_string "GMP says: ";
-    print_endline text;
+  let text = String.sub buffer
+      4 (n-4) in
+  if String.length text > 0 then begin
+    Printf.printf "GMP says: '%s'\n" text;
     flush stdout
   end
 ;;
 
-(* FIXME:  Assumes we get perfect
-   >4 bytes packet *)
 let read_message connection =
   let buffer = 
     String.create buffer_size in
-  let n = input connection.gmp_in 
-      buffer 0 buffer_size in 
-  handle_talk_text buffer n;
+  let n = ref 0 in
+  while !n < 4 do 
+    n := !n + input connection.gmp_in 
+	buffer !n buffer_size;
+  done;
+  handle_talk_text buffer !n;
   let msg = 
     unmarshall_message buffer in 
   add_to_log 
@@ -293,8 +294,8 @@ let marshall_message msg =
     | (AnswerCmd n) -> encode 4 n
     | (MoveCmd (col,n)) ->
 	let col_bit = match col with
-	  Board.White -> 0x200
-	| Board.Black -> 0
+	  `White -> 0x200
+	| `Black -> 0
 	in encode 5 (col_bit + n)
     | (TakebackMoveCmd n) ->
 	encode 6 n

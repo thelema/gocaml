@@ -1,23 +1,39 @@
-type t
-
-val empty : t
+open Global
 
 exception Ko
 
+val init_history : int option -> board_size -> unit
+
+val to_gmp : move -> (color * int)
+
+val to_move : (color * int) -> move
+
 val make_move :
-    t -> Board.move -> t
+    board_pos -> color -> unit
+	
+val make_turn :
+    board_pos -> unit
+
+val make_pass :
+    unit -> unit
 
 val add : 
-    t -> Board.t -> Board.move -> t
+    Board.t -> move -> unit
 
 val next_turn : 
-    t -> Board.color
+    color ref
 
 val last_board :
-    t -> Board.t
+    Board.t ref
 
 val last_move :
-    t -> Board.move option
+    move option ref
 
 val found_ko : 
-    t -> Board.t -> bool
+    Board.t -> bool
+
+val twopass :
+    unit -> bool
+
+val end_info : unit -> (Board.t * (int * int))
+
