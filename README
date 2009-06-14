@@ -1,0 +1,106 @@
+Gocaml v1.0
+-----------
+
+Author: adb@tardis.ed.ac.uk (Andrew Birkett)
+Date: 3 March 2002
+
+This is gocaml, a graphical frontend for GMP (Go Modem Protocol)
+engines.  Although usable, it has a very minimal user interface and is
+intended more as an example of ocaml programming than a serious Go
+client.  NOTE: It does not provide a computer player itself - it needs
+something like gnugo for that.
+
+It was written to explore the ocaml language, and also because I
+couldn't get cgoban to run on my linux IPAQ.  It was almost completely
+written natively on the IPAQ (with folding keyboard) using emacs and
+ocamlc.  Great performance, great language.
+
+See http://www.tardis.ed.ac.uk/~adb/gocaml/index.html for more info.
+
+Installation
+------------
+
+First install the ocaml compiler from http://caml.inria.fr/ocaml.  Gocaml
+was developed using ocaml-3.01, but any more recent version should be
+fine.
+
+Next, install gnugo from http://www.gnu.org/directory/gnugo.html and
+make sure you can launch it fine by typing 'gnugo' at your shell
+prompt.
+
+Finally, build gocaml by typing 'make all'.  This will produce the 'gocaml'
+executable.  Try './gocaml -help'.
+
+Running Gocaml
+--------------
+
+By default, gocaml starts with a 9x9 board, no handicap and launching
+gnugo with some sensible flags.  You are playing black, so click
+somewhere to make your move.  Then you'll see gnugo's white move.  The
+last stone to be played is marked with a dot.  Hitting any key passes.
+The game ends when both sides pass.  
+
+Currently, gocaml doesn't score the game so you have to look at the
+'log-gnugo.txt' file to see what gnugo thought the score was.
+
+By default, gnugo will write out a game file into log-sgf.txt.  Gocaml
+will write it's own game record (non-SGF) into log-moves.txt.  A
+record of the GMP communications goes into log-gmp.txt.
+
+The following options are available:
+
+  -handicap sets the handicap.  Valid arguments are 2 to 9.
+  -color sets the human player color.  Valid arguments are 'black' or 'white'
+  -play_local means both sides will be humans, and take turns about clicking.
+  -board_size can be 9, 11, 13 or 19.
+  -winsize sets the height and width of the GUI window.  Due to limitations in
+    the ocaml graphics library, you can't usefully resize the window.
+  -gmp_prog sets the command line used to invoke the GMP engine.  The default
+    is gnugo --mode=gmp --quiet -o log-sgf.txt --score all 2>log-gnugo.txt
+
+Design
+------
+
+The board (board.ml) is presented as an abstract type, but is implemented
+as a map from board intersection to color.  All of the clique/liberty logic
+is in the Board module.
+
+We keep track of previous board states using the History module
+(history.ml).  Board states are hashed to allow fast comparisons when
+checking for Ko violations.
+
+The Gui module has a straightforward interface (print board and ask
+for move) but a basic implementation using the Graphics library.  It 
+would be easy to add alternative GUI implementation.
+
+The GMP implementation is provided in two layers.  Firstly, the Rawgmp
+module provides marshalling/unmarshalling of GMP messages but doesn't
+worry much about the semantics of the data.  Secondly, the Gmp module
+adds sequence number checking and presents a higher level interface
+(wait for ok, etc).
+
+Bugs
+----
+
+Yes.
+
+Todo
+----
+
+* Scoring
+
+* Make GMP implementation more robust
+  - detect start bit properly
+  - handle talk text properly
+  - active start (gocaml sends NewGame)
+  - handle conflicts properly
+  - handle DENY properly
+
+* Better GUI feedback on mousedown
+
+Copyrights and License
+----------------------
+
+All files are under the GNU General Public License, which may be found
+in the file COPYING.
+

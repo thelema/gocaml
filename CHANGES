@@ -1,0 +1,10 @@
+Gocaml v1.0
+-----------
+
+Initial public release:
+  - Either local (human vs human) and remote (human vs GMP) modes
+  - Play black or white
+  - Any board size (9x9, 11x11, 13x13 or 19x19)
+  - Handicaps (2 to 9)
+  - Uses GMP (Go Modem Protocol) to communicate with game engines.
+  - Simple GUI interface (designed for use on Compaq IPAQ)
