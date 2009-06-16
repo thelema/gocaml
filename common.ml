@@ -13,14 +13,6 @@ let boardsize_of_int = function
   | 19 -> B19
   | _ -> failwith "invalid boardsize in boardsize_of_int"
 
-let uniq (l : 'a list) = 
-  let rec uniq' acc = function 
-      [] -> List.rev acc 
-    | h :: t when List.mem h acc -> uniq' acc t 
-    | h :: t -> uniq' (h::acc) t
-  in
-  uniq' [] l
-
 (*type 'a bs_pos = (int * int) constraint 'a = board_size *)
 
 let in_size s (x,y) = 
@@ -81,7 +73,6 @@ let matrix_set arr (x,y) v = arr.(x).(y) <- v
 
 type color = [`Black | `White]
 
-	
 type game_val = [color | `Empty]
 
 let opposite_color = function 
@@ -96,8 +87,3 @@ type action =
 type move = 
     Move of board_pos * color
   | Pass of color
-
-let (==>) x f = f x
-(*
-let (<==) f x = f x 
-*)

@@ -1,4 +1,4 @@
-open Global
+open Common
 (* High level GMP interface, using Rawgmp to do the parsing stuff but
    additionally hiding all the sequence number stuff *)
 
@@ -6,7 +6,7 @@ exception UnexpectedCommand of Rawgmp.gmp_command
 
 type gmp_connection
 
-val init_connection : (in_channel * out_channel) -> gmp_connection
+val init_connection : (IO.input * unit IO.output) -> gmp_connection
 
 val read_command : gmp_connection -> Rawgmp.gmp_command
 val receive_move : gmp_connection -> move

@@ -1,5 +1,4 @@
 exception GmpParseFailed
-open Global
 
 type gmp_query =
     QueryGame
@@ -17,14 +16,14 @@ type gmp_query =
   | QueryWhoAreYou
 
 type gmp_command = 
-    OkCmd | 
-    DenyCmd | 
-    NewGameCmd |
-    QueryExtendedCmd of int |
-    QueryCmd of gmp_query |
-    AnswerCmd of int |
-    MoveCmd of color * int |
-    TakebackMoveCmd of int
+  | OkCmd
+  | DenyCmd 
+  | NewGameCmd
+  | QueryExtendedCmd of int
+  | QueryCmd of gmp_query
+  | AnswerCmd of int
+  | MoveCmd of Common.color * int
+  | TakebackMoveCmd of int
 
 type raw_gmp_message = 
     { hsn : int;
@@ -37,7 +36,7 @@ val buffer_size : int
 type raw_gmp_connection
 
 val init_connection :
-    (in_channel * out_channel) -> raw_gmp_connection
+    (IO.input * unit IO.output) -> raw_gmp_connection
 
 val read_message :
     raw_gmp_connection -> raw_gmp_message

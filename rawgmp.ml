@@ -1,4 +1,4 @@
-open Global
+open Common
 (* In log, lsn and rsn are local seqn and remote seqn.
 *)
 
@@ -193,8 +193,8 @@ let recv_message_to_string msg =
 (* End of printing code *)
 
 type raw_gmp_connection =
-    { gmp_in : in_channel;
-      gmp_out : out_channel }
+    { gmp_in : IO.input;
+      gmp_out : unit IO.output }
 ;;
 
 let init_connection (proc_in, proc_out) =

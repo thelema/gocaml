@@ -1,4 +1,4 @@
-open Global
+open Common
 open Graphics
 
 let bg_color = rgb 128 255 0

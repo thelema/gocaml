@@ -1,4 +1,4 @@
-open Global
+open Common
 
 module Group : sig
   type t

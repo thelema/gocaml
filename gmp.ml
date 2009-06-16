@@ -1,4 +1,4 @@
-open Global
+open Common
 open Rawgmp
 
 exception GmpError of string * Rawgmp.raw_gmp_message;;

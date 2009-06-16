@@ -44,7 +44,3 @@ type action =
 type move = 
     Move of board_pos * color
   | Pass of color
-
-val uniq : 'a list -> 'a list (* removes duplicates from a list *)
-
-val (==>) : 'a -> ('a -> 'b) -> 'b

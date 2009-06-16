@@ -1,4 +1,4 @@
-open Global
+open Common
 (*open Rawgmp *)
 
 exception User_exit
@@ -7,7 +7,7 @@ type player_type = Local | Remote of string
 
 let gmp_prog = "gnugo --mode=gmp --quiet -o log-sgf.txt --score all 2>log-gnugo.txt"
 let handicap = ref None
-let color : Global.color ref = ref `Black
+let color : color ref = ref `Black
 let white_player = ref (Remote gmp_prog)
 let black_player = ref Local
 let board_size = ref B9;;
@@ -131,7 +131,7 @@ let main () =
   Gui.init_gui !winsize !board_size;
   History.init_history !handicap !board_size;
   Gui.draw_board ();
-  gameloop (iofuncs !white_player) (iofuncs !black_player) ==>
+  gameloop (iofuncs !white_player) (iofuncs !black_player) |>
     score_loop
     
 let _ = main ();;

@@ -1,4 +1,4 @@
-open Global
+open Common
 
 exception Ko
 

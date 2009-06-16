@@ -1,5 +1,5 @@
 (* Board contents is represented as a map from x,y intersect to color. *)
-open Global
+open Common
    
 type board = game_val array array
 
@@ -81,7 +81,7 @@ module Group = struct
     ownr = (c:>game_val);
     frce = false;
     mems = PosS.singleton p;
-    brdr = nbrs s p ==> poss_of_posl;
+    brdr = nbrs s p |> poss_of_posl;
   }
 
   let eunit s p = {
@@ -89,12 +89,12 @@ module Group = struct
     ownr = `Empty;
     frce = false;
     mems = PosS.singleton p;
-    brdr = nbrs s p ==> poss_of_posl;
+    brdr = nbrs s p |> poss_of_posl;
   }
 
   let rec expand s gv_ g =
 (*  print_string "expand: "; Group.print g; *)
-    let nbrset p = nbrs s p ==> poss_of_posl in
+    let nbrset p = nbrs s p |> poss_of_posl in
     let add_nbrs_of p a = PosS.union (nbrset p) a in
     let new_mems, brdr = PosS.partition (fun p -> gv_ p = g.colr) g.brdr in
     if PosS.is_empty new_mems then g
@@ -309,7 +309,7 @@ let split3 c1 t =
     match gv_ t p with
     | `Empty -> (PosS.add p l, f, e)
     | #color as c when c = c1 -> (l, GrpS.add (grp_ t p) f, e)
-    | #color as c (* when c != c1*) -> (l, f, PosS.add p e)
+    | #color (* when c != c1*) -> (l, f, PosS.add p e)
   in
   List.fold_left loop (PosS.empty, GrpS.empty, PosS.empty)
 
@@ -325,13 +325,13 @@ let add_stone t p c =
   | `Empty -> 
       let friends = 
 	nbrs (size t) p 
-	  ==> List.filter (fun p -> gv_ t p = (c:>game_val))
-	  ==> List.fold_left (fun a p -> GrpS.add (grp_ t p) a) GrpS.empty
+          |> List.filter (fun p -> gv_ t p = (c:>game_val))
+	  |> List.fold_left (fun a p -> GrpS.add (grp_ t p) a) GrpS.empty
       in
       let group = 
 	Group.unit (size t) c p 
-	  ==> GrpS.fold Group.union friends 
-	  ==> Group.crop_brdr (* remove any internal points 
+          |> GrpS.fold Group.union friends 
+	  |> Group.crop_brdr (* remove any internal points 
 				 (especially p) from the border *)
       in
       let t = duplicate t in
@@ -342,8 +342,8 @@ let add_stone t p c =
 (** finds groups neighboring point p with color c *)
 let nbr_grps t p c = 
   nbrs (size t) p 
-    ==> List.filter (is_color t.b c)
-    ==> List.fold_left (fun gs a -> GrpS.add (grp_ t a) gs) GrpS.empty
+  |> List.filter (is_color t.b c)
+  |> List.fold_left (fun gs a -> GrpS.add (grp_ t a) gs) GrpS.empty
 
 (** remove group g from board t, modifying t, no checks *)
 let remove_group_mod t g = write_empty t g
@@ -363,7 +363,7 @@ let killed_by t p c =
   assert (is_color t.b c p);
   let opp_c = opposite_color c in
   nbr_grps t p opp_c
-    ==> GrpS.filter (to_kill t)
+  |> GrpS.filter (to_kill t)
 
 let make_move t p c = 
 (*  print_string (board_to_string board); *)
@@ -473,20 +473,20 @@ let annotate t =
 (* add more tests for being dead here *)
 
   and kill f dl = 
-    let dead,alive = List.partition f dl in
+    let dead,_ = List.partition f dl in
     List.iter (Dragon.kill false) dead;
     let gl = Dragon.list_to_group_list dl in
     make_dragons t gl
   in
   finalize t
-    ==> make_dragons t
-    ==> kill ataridead
-(*  ==> kill smalldragdead*)
-    ==> kill internaldead
+  |> make_dragons t
+  |> kill ataridead
+(*  |> kill smalldragdead*)
+  |> kill internaldead
     
 let score t (wc, bc) = (* white captures, black captures *)
   let (wp,bp) = 
-    annotate t ==> List.fold_left Dragon.score (wc, bc) 
+    annotate t |> List.fold_left Dragon.score (wc, bc) 
   in
   print_string (board_to_string t);
   Printf.printf "W:%d.5 B:%d\n" wp bp;
@@ -496,6 +496,6 @@ let forcetoggle t p =
   print_string "Killing at "; print_pos p; print_endline "";
   Group.toggle_dead true (grp_ t p);
   print_string (board_to_string t);
-  annotate t ==> List.iter (Dragon.print ~libs:(is_empty_or_dead t) "\n")
+  annotate t |> List.iter (Dragon.print ~libs:(is_empty_or_dead t) "\n")
 
 

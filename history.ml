@@ -1,4 +1,4 @@
-open Global
+open Common
 open Board
 
 exception Ko

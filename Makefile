@@ -1,10 +1,10 @@
 all: gocaml
 
 gocaml: 
-	ocamlbuild main.byte
+	ocamlbuild main.byte -lib graphics
 
 gocaml.opt:
-	ocamlbuild main.native
+	ocamlbuild main.native -lib graphics
 
 # Clean up
 clean:
