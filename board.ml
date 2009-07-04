@@ -1,13 +1,9 @@
 (* Board contents is represented as a map from x,y intersect to color. *)
 open Common
    
-type board = game_val array array
+type 'a board = 'a array array
 
-let bv_ b p = index b p
-
-let is_color b c0 p = bv_ b p = (c0 :> game_val)
-
-let isnot_gv b gv p = bv_ b p != gv
+type game_board = game_val board
 
 let to_char gv own = 
   match (gv, own) with
@@ -165,30 +161,35 @@ module Dragon =
 
   end
 
+type group_board = Group.t board
+
+(* Fully annotated board type *)
 type t = {
-    b : board;
-    ga : Group.t array array;
-    mutable gl : Group.t list option;
+    game_board : game_board;
+    group_board : group_board; 
+    (* list of all groups *)
+    mutable groups : Group.t list option;
   }
 
-let size t = Array.length t.b
+let is_color t c0 p = index t.game_board p = (c0 :> game_val)
+let isnot_gv t gv p = index t.game_board p != gv
 
-let set_grp1 t g p = matrix_set t.ga p g
+let gv_ t p = index t.game_board p
+let grp_ t p = index t.group_board p
 
-let write2 t gv g p = 
-  let write1 t gv p = matrix_set t.b p gv in
-  write1 t gv p; 
-  set_grp1 t g p
+let size t = Array.length t.game_board
 
-let gv_ t p = index t.b p
-let grp_ t p = index t.ga p
+let _write t gv g p = 
+  matrix_set t.game_board p gv;
+  matrix_set t.group_board p g
 
-let write t gv g ps = PosS.iter (write2 t gv g) ps
+let write t gv g ps = PosS.iter (_write t gv g) ps
 
 let write_empty t g = write t `Empty (Group.make_empty g) (Group.members g)
-let write_stone t c p = write2 t (c:>game_val) (Group.unit (size t) c p) p
-
-let set_group t g = PosS.iter (set_grp1 t g) (Group.members g)
+let write_stone t c p = _write t (c:>game_val) (Group.unit (size t) c p) p
+let write_group t g = 
+  Group.members g 
+    |> PosS.iter (fun p -> matrix_set t.group_board p g) 
 
 let is_empty_or_dead t p = 
   match gv_ t p with
@@ -200,7 +201,7 @@ let liberties t g = Group.liberties (is_empty_or_dead t) g
 let liberties_d t d = Dragon.liberties (is_empty_or_dead t) d
 
 let nbr_stones t g = 
-  PosS.filter (isnot_gv t.b (Group.color g)) (Group.border g)
+  PosS.filter (isnot_gv t (Group.color g)) (Group.border g)
 
 let nbr_groups t g =
   let ns = nbr_stones t g in
@@ -214,12 +215,12 @@ let fold f t i = walk (fun p acc -> f acc (gv_ t p, grp_ t p)) (size t) i
 let fold_gv f t i = walk (fun p acc -> f acc (gv_ t p)) (size t) i
 
 let walkstones t funacc init =
-  let funint p acc =
+  let act_color p acc =
     match gv_ t p with
     | `Empty -> acc
     | #color as c -> funacc p c acc
   in
-  walk funint (size t) init
+  walk act_color (size t) init
     
 let itersquare f t = walk (fun p _ -> f p) (size t) ()
 
@@ -259,16 +260,18 @@ let init_matrix_pos s f =
 let empty bs = 
   let s = int_of_boardsize bs in 
   {
-   b = Array.make_matrix s s `Empty;
-   ga = init_matrix_pos s (Group.eunit s);
-   gl = None;
+   game_board = Array.make_matrix s s `Empty;
+   group_board = init_matrix_pos s (Group.eunit s);
+   groups = None;
  }
 
 let duparr arr = 
   let s = Array.length arr in
   Array.init s (fun i -> Array.copy arr.(i))
 
-let duplicate t = {t with b=duparr t.b;ga=duparr t.ga}
+let duplicate t = {t with 
+		     game_board=duparr t.game_board;
+		     group_board=duparr t.group_board}
 
 (* Board printing functions *)
 let square_to_string s pos_to_string = 
@@ -336,13 +339,13 @@ let add_stone t p c =
       in
       let t = duplicate t in
       add_stone_mod t p c;
-      set_group t group;
+      write_group t group;
       t
 
 (** finds groups neighboring point p with color c *)
 let nbr_grps t p c = 
   nbrs (size t) p 
-  |> List.filter (is_color t.b c)
+  |> List.filter (is_color t c)
   |> List.fold_left (fun gs a -> GrpS.add (grp_ t a) gs) GrpS.empty
 
 (** remove group g from board t, modifying t, no checks *)
@@ -360,7 +363,7 @@ let remove_group g t =
 let to_kill t g = PosS.is_empty (liberties t g)
 
 let killed_by t p c = 
-  assert (is_color t.b c p);
+  assert (is_color t c p);
   let opp_c = opposite_color c in
   nbr_grps t p opp_c
   |> GrpS.filter (to_kill t)
@@ -393,7 +396,7 @@ let hash t =
   let hashwalk p _ acc = (int_of_pos size p) + acc in
   walkstones t hashwalk 0
 
-let equal t1 t2 = t1.b = t2.b
+let equal t1 t2 = t1.game_board = t2.game_board
     
 (*
  *
@@ -414,7 +417,7 @@ let rec make_groups t acc ps =
     let p = PosS.choose ps in
     let seed = Group.unit (size t) (gv_ t p) p in
     let g = Group.expand (size t) (gv_ t) seed in
-    set_group t g;
+    write_group t g;
     make_groups t (g :: acc) (PosS.diff ps (Group.members g))
       
 let has_common_liberties t g d = 
@@ -454,10 +457,10 @@ let make_dragons t gl =
   dl
 
 let finalize t =
-  match t.gl with
+  match t.groups with
     None -> 
       let gl = make_groups t [] (all_pos (size t)) in
-      t.gl <- Some gl;
+      t.groups <- Some gl;
       gl
   | Some gl -> 
       gl
@@ -466,7 +469,7 @@ let annotate t =
 (* a dragon is dead if it has one liberty *)
   let ataridead d = PosS.cardinal (liberties_d t d) < 2
 (* a dragon can't be alive if it's got < 6 stones *)
-  and smalldragdead d = Dragon.size d < 6
+  and _smalldragdead d = Dragon.size d < 6
 (* a dragon is probably dead if it doesn't have internal liberties *)
   and internaldead d = 
     PosS.exists (fun p -> Group.color (grp_ t p) = Dragon.color d) (liberties_d t d)
