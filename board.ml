@@ -176,14 +176,15 @@ let grp_at t p = index t.group_board p
 
 let size t = board_size t.game_board
 
-let _write t gv g p = 
+let _write_one t gv g p = 
   matrix_set t.game_board p gv;
   matrix_set t.group_board p g
 
-let write t gv g ps = PosS.iter (_write t gv g) ps
+let write_stone t c p = _write_one t (c:>game_val) (Group.unit (size t) c p) p
 
-let write_empty t g = write t `Empty (Group.make_empty g) (Group.members g)
-let write_stone t c p = _write t (c:>game_val) (Group.unit (size t) c p) p
+let write_empty t g = 
+  PosS.iter (_write_one t `Empty (Group.make_empty g)) (Group.members g)
+
 let write_group t g = 
   Group.members g 
     |> PosS.iter (fun p -> matrix_set t.group_board p g) 
@@ -194,7 +195,6 @@ let is_empty_or_dead t p =
   | #color -> Group.is_dead (grp_at t p)
 
 let liberties t g = Group.liberties (is_empty_or_dead t) g
-
 let liberties_d t d = Dragon.liberties (is_empty_or_dead t) d
 
 let nbr_pos_of_group t g =
@@ -234,14 +234,41 @@ let on_board t p = in_size (size t) p
 
 let all_pos b = Enum.fold (fun acc (p,_) -> PosS.add p acc) PosS.empty (enum b)
   
-let empty bs = 
+let handicap_stones s = 
+  let (high,mid,low) = 
+    match s with 
+      B9  -> (6, 4, 2)
+    | B11 -> (8, 5, 2)
+    | B13 -> (9, 6, 3)
+    | B19 -> (15, 9, 3)
+  in 
+  List.map (fun p -> pos_of_pair (int_of_boardsize s) p)
+    [(high,high); (low,low); (high,low); (low,high);
+     (mid,low); (mid,high); (low,mid); (high,mid)]
+    
+let center_stone n = ((n-1)/2, (n-1)/2)
+
+let create bs ~handi:h = 
   let s = int_of_boardsize bs in 
-  {
+  let t = {
    game_board = make_board s `Empty;
    group_board = make_board_pos s (Group.eunit s);
    groups = None;
- }
-
+  } in
+  let do_moves = List.iter (write_stone t `Black) in
+  let size = (int_of_boardsize bs) in
+  let add_handicap_stones n = 
+    let stones = List.take n (handicap_stones bs) in
+    do_moves stones
+  and add_center_stone () =
+    do_moves [pos_of_pair size (center_stone size)]
+  in
+  if h mod 2 = 1 && h > 4 then begin
+    add_center_stone ();
+    add_handicap_stones (h-1);
+  end else 
+    add_handicap_stones h;
+  t
 
 let duplicate t = {t with 
 		     game_board=clone_board t.game_board;
@@ -263,9 +290,6 @@ let square_to_string s pos_to_string =
   done;
   Buffer.contents buf
 
-(*let board_to_string (b,_) = square_to_string (Array.length b) 
-    (fun i j -> gv_to_string b.(i).(j))
-*)
 let board_to_string t = 
   let s = size t in
   let pos_to_string i j = 
@@ -276,9 +300,6 @@ let board_to_string t =
 
 
 (* End of board printing functions *)
-
-(* adds stone to board modifying board (no checks) *)
-let add_stone_mod t p c = write_stone t c p
 
 let split3 c1 t = 
   let loop (l, f, e) p =
@@ -313,20 +334,17 @@ let add_stone t p c =
 				 (especially p) from the border *)
       in
       let t = duplicate t in
-      add_stone_mod t p c;
+      write_stone t c p;
       write_group t group;
       t
 
-(** remove group g from board t, modifying t, no checks *)
-let remove_group_mod t g = write_empty t g
-    
 (** remove group g from board t, returning modified board, sanity checking *)
 let remove_group g t =
   assert (PosS.is_empty (liberties t g));
   Printf.printf "Killing %d stones: " (Group.size g);
   Group.print "\n" g;
   let t = duplicate t in
-  remove_group_mod t g;
+  write_empty t g;
   t
 
 let to_kill t g = PosS.is_empty (liberties t g)

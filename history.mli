@@ -2,7 +2,7 @@ open Common
 
 exception Ko
 
-val init_history : int option -> board_size -> unit
+val init_history : int -> board_size -> unit
 
 val to_gmp : move -> (color * int)
 

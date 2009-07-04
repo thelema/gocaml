@@ -15,7 +15,7 @@ let log = open_out "log-moves.txt"
     
 let h = ref []
     
-let last_board = ref (Board.empty !size)
+let last_board = ref (Board.create !size ~handi:0)
     
 let last_move = ref None
     
@@ -29,55 +29,16 @@ let blackcaptures = ref 0
     
 let set_boardsize bs = size := bs
     
-let rec take n l =
-  if n = 0 then []
-  else match l with
-    x::xs -> x::(take (n-1) xs)
-  | [] -> []
-	
-let handicap_stones s = 
-  let (high,mid,low) = 
-    match s with 
-      B9  -> (6, 4, 2)
-    | B11 -> (8, 5, 2)
-    | B13 -> (9, 6, 3)
-    | B19 -> (15, 9, 3)
-  in 
-  List.map (fun p -> pos_of_pair (int_of_boardsize s) p)
-    [(high,high); (low,low); (high,low); (low,high);
-     (mid,low); (mid,high); (low,mid); (high,mid)]
-    
-let center_stone n = ((n-1)/2, (n-1)/2)
-    
 let init_history handicap bs =
   set_boardsize bs;
-  let startboard = Board.empty bs in
-  let do_moves = List.iter (fun i -> add_stone_mod startboard i `Black) in
-  let size = (int_of_boardsize bs) in
-  let add_handicap_stones n = 
-    let stones = take n (handicap_stones bs) in
-    do_moves stones
-  and add_center_stone () =
-    do_moves [pos_of_pair size (center_stone size)]
-  in
+  let startboard = Board.create bs ~handi:handicap in
   
-  begin
-    match handicap with
-      None -> next_turn := `Black
-    | Some n when (n mod 2) = 1 && n > 4 ->
-	add_center_stone ();
-	add_handicap_stones (n-1);
-	next_turn := `White
-    | Some n ->
-	add_handicap_stones n;
-	next_turn := `White
-  end;
+  next_turn := (match handicap with 0 -> `Black | _ -> `White);
   
-  (* startboard now has all the appropriate handicap stones *)
   last_board := startboard;
   h := [ (startboard, Pass `White, hash startboard) ];
   whitecaptures := 0; blackcaptures := 0
-
+    
 let to_gmp move = 
   match move with
     Move (p,color) -> (color, 1 + int_of_pos (size_int ()) p)

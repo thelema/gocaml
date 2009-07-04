@@ -6,7 +6,7 @@ exception User_exit
 type player_type = Local | Remote of string
 
 let gmp_prog = "gnugo --mode=gmp --quiet -o log-sgf.txt --score all 2>log-gnugo.txt"
-let handicap = ref None
+let handicap = ref 0
 let color : color ref = ref `Black
 let white_player = ref (Remote gmp_prog)
 let black_player = ref Local
@@ -17,7 +17,7 @@ let options =
   [("-handicap", 
     Arg.Int (fun n -> 
       if n < 2 then raise (Arg.Bad "Handicap must be 2 or greater")
-      else handicap := (Some n)),
+      else handicap := n),
     "Sets blacks advantage");
 
    ("-color",
