@@ -172,10 +172,9 @@ type t = {
   }
 
 let is_color t c0 p = index t.game_board p = (c0 :> game_val)
-let isnot_gv t gv p = index t.game_board p != gv
 
-let gv_ t p = index t.game_board p
-let grp_ t p = index t.group_board p
+let gv_at t p = index t.game_board p
+let grp_at t p = index t.group_board p
 
 let size t = Array.length t.game_board
 
@@ -192,31 +191,31 @@ let write_group t g =
     |> PosS.iter (fun p -> matrix_set t.group_board p g) 
 
 let is_empty_or_dead t p = 
-  match gv_ t p with
+  match gv_at t p with
     `Empty -> true
-  | #color -> Group.is_dead (grp_ t p)
+  | #color -> Group.is_dead (grp_at t p)
 
 let liberties t g = Group.liberties (is_empty_or_dead t) g
 
 let liberties_d t d = Dragon.liberties (is_empty_or_dead t) d
 
-let nbr_stones t g = 
-  PosS.filter (isnot_gv t (Group.color g)) (Group.border g)
-
-let nbr_groups t g =
-  let ns = nbr_stones t g in
-  PosS.fold (fun p gs -> GrpS.add (grp_ t p) gs) ns GrpS.empty
+let nbr_pos_of_group t g =
+  let c = Group.color g in
+  let ns = 
+    (Group.border g) 
+      |> PosS.filter (fun p -> index t.game_board p != c) in
+  PosS.fold (fun p gs -> GrpS.add (grp_at t p) gs) ns GrpS.empty
 
 type hasht = int
 
 exception Illegal_move of string * board_pos
 
-let fold f t i = walk (fun p acc -> f acc (gv_ t p, grp_ t p)) (size t) i
-let fold_gv f t i = walk (fun p acc -> f acc (gv_ t p)) (size t) i
+let fold f t i = walk (fun p acc -> f acc (gv_at t p, grp_at t p)) (size t) i
+let fold_gv f t i = walk (fun p acc -> f acc (gv_at t p)) (size t) i
 
 let walkstones t funacc init =
   let act_color p acc =
-    match gv_ t p with
+    match gv_at t p with
     | `Empty -> acc
     | #color as c -> funacc p c acc
   in
@@ -226,7 +225,7 @@ let itersquare f t = walk (fun p _ -> f p) (size t) ()
 
 let iterboard funstone funempty t =
   let f p = 
-    match gv_ t p with
+    match gv_at t p with
     | `Empty -> funempty p
     | #color as c -> funstone p c
   in
@@ -234,10 +233,10 @@ let iterboard funstone funempty t =
 
 let iterstones f t = iterboard f (fun _ -> ()) t
 
-let b_iterij f t = itersquare (fun p -> f p (gv_ t p)) t
-let ga_iterij f t = itersquare (fun p -> f p (grp_ t p)) t
+let b_iterij f t = itersquare (fun p -> f p (gv_at t p)) t
+let ga_iterij f t = itersquare (fun p -> f p (grp_at t p)) t
 let iterij2 f2 t =
-  let f p = f2 p (gv_ t p) (grp_ t p) in
+  let f p = f2 p (gv_at t p) (grp_at t p) in
   itersquare f t
 
 let iterij f = 
@@ -297,7 +296,7 @@ let board_to_string t =
   let s = size t in
   let pos_to_string i j = 
     let p = pos_of_pair s (i,j) in
-    to_char (gv_ t p) (Group.owner (grp_ t p))
+    to_char (gv_at t p) (Group.owner (grp_at t p))
   in
   square_to_string s pos_to_string
 
@@ -309,16 +308,22 @@ let add_stone_mod t p c = write_stone t c p
 
 let split3 c1 t = 
   let loop (l, f, e) p =
-    match gv_ t p with
+    match gv_at t p with
     | `Empty -> (PosS.add p l, f, e)
-    | #color as c when c = c1 -> (l, GrpS.add (grp_ t p) f, e)
+    | #color as c when c = c1 -> (l, GrpS.add (grp_at t p) f, e)
     | #color (* when c != c1*) -> (l, f, PosS.add p e)
   in
   List.fold_left loop (PosS.empty, GrpS.empty, PosS.empty)
 
+(** finds groups neighboring point p with color c *)
+let nbr_groups t p c = 
+  nbrs (size t) p 
+  |> List.filter (is_color t c)
+  |> List.fold_left (fun gs a -> GrpS.add (grp_at t a) gs) GrpS.empty
+
 (* Adds stone to board non-destructive *)
 let add_stone t p c =
-  let gv = try gv_ t p with 
+  let gv = try gv_at t p with 
     Invalid_argument _ -> (* thrown by array access out of range *)
       raise (Illegal_move ("Off the board", p))
   in
@@ -326,11 +331,7 @@ let add_stone t p c =
   | #color ->
       raise (Illegal_move ("Stone already there", p))
   | `Empty -> 
-      let friends = 
-	nbrs (size t) p 
-          |> List.filter (fun p -> gv_ t p = (c:>game_val))
-	  |> List.fold_left (fun a p -> GrpS.add (grp_ t p) a) GrpS.empty
-      in
+      let friends = nbr_groups t p c in
       let group = 
 	Group.unit (size t) c p 
           |> GrpS.fold Group.union friends 
@@ -341,12 +342,6 @@ let add_stone t p c =
       add_stone_mod t p c;
       write_group t group;
       t
-
-(** finds groups neighboring point p with color c *)
-let nbr_grps t p c = 
-  nbrs (size t) p 
-  |> List.filter (is_color t c)
-  |> List.fold_left (fun gs a -> GrpS.add (grp_ t a) gs) GrpS.empty
 
 (** remove group g from board t, modifying t, no checks *)
 let remove_group_mod t g = write_empty t g
@@ -365,13 +360,13 @@ let to_kill t g = PosS.is_empty (liberties t g)
 let killed_by t p c = 
   assert (is_color t c p);
   let opp_c = opposite_color c in
-  nbr_grps t p opp_c
+  nbr_groups t p opp_c
   |> GrpS.filter (to_kill t)
 
 let make_move t p c = 
 (*  print_string (board_to_string board); *)
   let t = add_stone t p c in
-  let g = grp_ t p 
+  let g = grp_at t p 
   and killed = killed_by t p c in
   if to_kill t g && GrpS.is_empty killed then
     raise (Illegal_move ("Suicide Move", p));
@@ -415,8 +410,8 @@ let rec make_groups t acc ps =
   if PosS.is_empty ps then acc
   else 
     let p = PosS.choose ps in
-    let seed = Group.unit (size t) (gv_ t p) p in
-    let g = Group.expand (size t) (gv_ t) seed in
+    let seed = Group.unit (size t) (gv_at t p) p in
+    let g = Group.expand (size t) (gv_at t) seed in
     write_group t g;
     make_groups t (g :: acc) (PosS.diff ps (Group.members g))
       
@@ -437,7 +432,7 @@ let own_empty t d =
   let g = GrpS.choose d in 
   if Group.color g = `Empty then 
 (* empty dragons have only one group, so we're working on the whole dragon *)
-    let ownr_of_pos p = Group.owner (grp_ t p) in
+    let ownr_of_pos p = Group.owner (grp_at t p) in
     let test_ownr = ownr_of_pos (PosS.choose (Group.border g)) in
     let owner = 
       if PosS.for_all (fun p -> ownr_of_pos p = test_ownr) (Group.border g)
@@ -472,7 +467,7 @@ let annotate t =
   and _smalldragdead d = Dragon.size d < 6
 (* a dragon is probably dead if it doesn't have internal liberties *)
   and internaldead d = 
-    PosS.exists (fun p -> Group.color (grp_ t p) = Dragon.color d) (liberties_d t d)
+    PosS.exists (fun p -> Group.color (grp_at t p) = Dragon.color d) (liberties_d t d)
 (* add more tests for being dead here *)
 
   and kill f dl = 
@@ -497,7 +492,7 @@ let score t (wc, bc) = (* white captures, black captures *)
 
 let forcetoggle t p = 
   print_string "Killing at "; print_pos p; print_endline "";
-  Group.toggle_dead true (grp_ t p);
+  Group.toggle_dead true (grp_at t p);
   print_string (board_to_string t);
   annotate t |> List.iter (Dragon.print ~libs:(is_empty_or_dead t) "\n")
 
