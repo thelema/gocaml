@@ -30,22 +30,22 @@ let pos_of_pair s (x,y) =
 
 let int_of_pos s (x,y) = s*x + y
 
+exception Done
+
 let walk funacc size init =
   let next (i,j) = 
-    if i+1 < size
-    then (i+1,j)
-    else 
-      if j+1 < size
-      then (0,j+1) 
-      else failwith "No next" in
+    if i+1 < size then (i+1,j)
+    else if j+1 < size then (0,j+1) 
+    else raise Done in
   let rec loop p acc =
     try 
       let np = next p in (* fails at last position *)
       loop np (funacc p acc)
-    with Failure _ -> acc
+    with Done -> acc
   in
   loop (0,0) init
 
+(* build neighbor lists for each position on the board *)
 let (n9, n11, n13, n19) =  
   let build s = 
     let make_list (x, y) = 
@@ -55,35 +55,38 @@ let (n9, n11, n13, n19) =
   in
   (build 9, build 11, build 13, build 19)
 
+(* return the nbr map for a certain size board *)
 let nbr = function
     9 -> n9 | 11 -> n11 | 13 -> n13 | 19 -> n19
   | _ -> failwith "Invalid board size in nbr"
 
+(* return the list of neighbors on a certain size board at pos x,y *)
 let nbrs s (x,y) = (nbr s).(x).(y)
-      
+  
 module PosS = Set.Make(struct type t = board_pos let compare = compare end)
-    
+  (* pos set of pos list *)    
 let poss_of_posl = List.fold_left (fun ls p -> PosS.add p ls) PosS.empty
-
+  
 let sprint_pos (x,y) = Printf.sprintf "(%d, %d)" x y
 let print_pos p = print_string (sprint_pos p)
-
+  
 let index arr (x,y) = arr.(x).(y)
 let matrix_set arr (x,y) v = arr.(x).(y) <- v
-
+  
 type color = [`Black | `White]
-
+    
 type game_val = [color | `Empty]
-
+    
 let opposite_color = function 
     `Black -> `White
   | `White -> `Black
-	
+      
 type action = 
     Click of board_pos
   | PassMove
   | Quit
-
+      
 type move = 
     Move of board_pos * color
   | Pass of color
+      
