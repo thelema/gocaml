@@ -15,11 +15,43 @@ let boardsize_of_int = function
 
 (*type 'a bs_pos = (int * int) constraint 'a = board_size *)
 
+type 'a board = 'a array array
+type board_pos = (int * int)
+
+let board_size b = Array.length b
+let make_board s v = Array.make_matrix s s v
+let make_board_pos s f =   
+  Array.init s (fun i -> Array.init s (fun j -> f (i,j)))
+
+let clone_board b = 
+  let s = board_size b in
+  Array.init s (fun i -> Array.copy b.(i))
+
+let index arr (x,y) = arr.(x).(y)
+let matrix_set arr (x,y) v = arr.(x).(y) <- v
+
 let in_size s (x,y) = 
   (0 <= x) && (x < s) &&
   (0 <= y) && (y < s)
 
-type board_pos = (int * int)
+let next s (i,j) = if i+1 < s then (i+1,j) else (0,j+1) 
+let dist s (x,y) (i,j) = i-x + s*(j-y)
+
+let enum b = 
+  let rec make start xs =
+    let s = board_size xs in(*Inside the loop, as [make] may later be called with another array*)
+    Enum.make
+      ~next:(fun () ->
+	       if in_size s !start then
+		 let ret = !start, index xs !start in
+		 start := next s !start;
+		 ret
+	       else
+		 raise Enum.No_more_elements)
+      ~count:(fun () ->	dist s (s,s) (!start))
+      ~clone:(fun () -> make (ref !start) xs)
+  in
+  make (ref (0,0)) b 
 
 let unsafe_pair_of_pos (x,y) = (x,y)
 
@@ -31,19 +63,6 @@ let pos_of_pair s (x,y) =
 let int_of_pos s (x,y) = s*x + y
 
 exception Done
-
-let walk funacc size init =
-  let next (i,j) = 
-    if i+1 < size then (i+1,j)
-    else if j+1 < size then (0,j+1) 
-    else raise Done in
-  let rec loop p acc =
-    try 
-      let np = next p in (* fails at last position *)
-      loop np (funacc p acc)
-    with Done -> acc
-  in
-  loop (0,0) init
 
 (* build neighbor lists for each position on the board *)
 let (n9, n11, n13, n19) =  
@@ -70,8 +89,6 @@ let poss_of_posl = List.fold_left (fun ls p -> PosS.add p ls) PosS.empty
 let sprint_pos (x,y) = Printf.sprintf "(%d, %d)" x y
 let print_pos p = print_string (sprint_pos p)
   
-let index arr (x,y) = arr.(x).(y)
-let matrix_set arr (x,y) v = arr.(x).(y) <- v
   
 type color = [`Black | `White]
     

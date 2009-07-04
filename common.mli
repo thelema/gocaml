@@ -9,7 +9,14 @@ type board_size = B9 | B11 | B13 | B19
 val int_of_boardsize : board_size -> int
 val boardsize_of_int : int -> board_size
 
+type 'a board
 type board_pos
+
+val board_size : 'a board -> int
+val make_board : int -> 'a -> 'a board
+val make_board_pos : int -> (board_pos -> 'a) -> 'a board
+
+val clone_board : 'a board -> 'a board
 
 val unsafe_pair_of_pos : board_pos -> int * int
 
@@ -24,11 +31,11 @@ val print_pos : board_pos -> unit
 
 val int_of_pos : int -> board_pos -> int
 
-val index : 'a array array -> board_pos -> 'a
+val index : 'a board -> board_pos -> 'a
 
-val matrix_set : 'a array array -> board_pos -> 'a -> unit
+val matrix_set : 'a board -> board_pos -> 'a -> unit
 
-val walk : (board_pos -> 'a -> 'a) -> int -> 'a -> 'a
+val enum : 'a board -> (board_pos * 'a) Enum.t
 
 val nbrs : int -> board_pos -> board_pos list
 

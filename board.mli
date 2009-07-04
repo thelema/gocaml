@@ -1,11 +1,13 @@
 open Common
 
+(*
 module Group : sig
   type t
   val is_dead : t -> bool
   val is_forced : t -> bool
   val owner : t -> game_val
 end
+*)
 
 (* Representation of the board *)
 type t 
@@ -29,14 +31,15 @@ val hash : t -> hasht
 val equal : t -> t -> bool
     
 val on_board : t -> board_pos -> bool
-    
-val iterstones : (board_pos -> color -> unit) -> t -> unit 
-    
-(*val iterij : (int -> int -> 'a -> unit) -> 'a array array -> unit*)
 
-val iterij2 : (board_pos -> game_val -> Group.t -> unit) -> t -> unit
+val enum : t -> (board_pos * game_val) Enum.t
 
-(*val is_dead_stone : stone_props -> bool*)
+val enum_stones : t -> (board_pos * color) Enum.t
+
+type annot = { dead : bool; forced : bool; owner : game_val }
+
+val get_annot : t -> board_pos -> annot
+
 
 (* White,Black score *)
 val score : t -> (int * int) -> (int * int)

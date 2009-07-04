@@ -67,11 +67,12 @@ let draw_stone_plus (x,y) c dead frcd =
   end
 *)
 
-let draw_pos (x,y) gv o frcd = 
+let draw_pos (x,y) gv annot = 
   let circle c r = 
     set_color c;
     fill_ellipse x y r r
   in
+  let o = annot.Board.owner in
   (match gv, o with
     | `Empty, `Empty -> circle bg_color 2
     | `Empty, `Black -> circle black 2
@@ -82,11 +83,12 @@ let draw_pos (x,y) gv o frcd =
     | `White, `White -> circle white (!grid_size / 2)
     | `White, `Black -> circle white (!grid_size / 4)
     );
-  if frcd then circle blue 3
+  if annot.Board.forced then circle blue 3
 
-let draw_alive_stone p c = 
-  let (x,y) = coord_of_move p in
-  draw_pos (x,y) c c false
+let draw_alive_stone (p,c) = 
+  let c = (c :> game_val) 
+  and (x,y) = coord_of_move p in
+  draw_pos (x,y) c {Board.owner=c;forced=false;dead=false}
 
 let draw_grid () =
   let g = !grid_size 
@@ -128,7 +130,7 @@ let draw_status str =
 let drawboard_add board moveadd =
   display_mode false;
   draw_grid ();
-  Board.iterstones draw_alive_stone board;
+  Enum.iter draw_alive_stone (Board.enum_stones board);
   moveadd (); (* this highlights the last stone played and prints the text *)
   synchronize ();
   display_mode true    
@@ -144,11 +146,10 @@ let draw_board_ext board moveopt =
 
 let draw_board () = draw_board_ext !History.last_board !History.last_move
 
-let vis_annotate p gv g = 
+let vis_annotate b (p,gv) = 
   let (x,y) = coord_of_move p 
-  and o = Board.Group.owner g
-  and f = Board.Group.is_forced g in
-  draw_pos (x,y) gv o f
+  and annot = Board.get_annot b p in
+  draw_pos (x,y) gv annot
 
 let showscore eboard (b,w) = 
   moveto !grid_size 1;
@@ -159,8 +160,8 @@ let draw_end_board eboard points =
   display_mode false;
   draw_grid ();
   let (white, black) = Board.score eboard points in
-  showscore eboard (black, white);  
-  Board.iterij2 vis_annotate eboard;
+  showscore eboard (black, white);
+  Enum.iter (vis_annotate eboard) (Board.enum eboard);
   synchronize ();
   display_mode true
 

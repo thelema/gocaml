@@ -1,8 +1,6 @@
 (* Board contents is represented as a map from x,y intersect to color. *)
 open Common
    
-type 'a board = 'a array array
-
 type game_board = game_val board
 
 let to_char gv own = 
@@ -176,7 +174,7 @@ let is_color t c0 p = index t.game_board p = (c0 :> game_val)
 let gv_at t p = index t.game_board p
 let grp_at t p = index t.group_board p
 
-let size t = Array.length t.game_board
+let size t = board_size t.game_board
 
 let _write t gv g p = 
   matrix_set t.game_board p gv;
@@ -210,67 +208,44 @@ type hasht = int
 
 exception Illegal_move of string * board_pos
 
-let fold f t i = walk (fun p acc -> f acc (gv_at t p, grp_at t p)) (size t) i
-let fold_gv f t i = walk (fun p acc -> f acc (gv_at t p)) (size t) i
+let enum t = enum t.game_board
 
-let walkstones t funacc init =
-  let act_color p acc =
-    match gv_at t p with
-    | `Empty -> acc
-    | #color as c -> funacc p c acc
-  in
-  walk act_color (size t) init
-    
-let itersquare f t = walk (fun p _ -> f p) (size t) ()
+let enum_stones t = 
+  let f = function (_,`Empty) -> None | p,(#color as c) -> Some (p,c) in
+  enum t |> Enum.filter_map f
 
-let iterboard funstone funempty t =
-  let f p = 
-    match gv_at t p with
-    | `Empty -> funempty p
-    | #color as c -> funstone p c
-  in
-  itersquare f t
+type annot = { dead : bool; forced : bool; owner : game_val }
 
-let iterstones f t = iterboard f (fun _ -> ()) t
+let get_annot t p = 
+  let g = grp_at t p in
+  {dead = Group.is_dead g; owner = Group.owner g; forced = Group.is_forced g}
 
-let b_iterij f t = itersquare (fun p -> f p (gv_at t p)) t
-let ga_iterij f t = itersquare (fun p -> f p (grp_at t p)) t
-let iterij2 f2 t =
-  let f p = f2 p (gv_at t p) (grp_at t p) in
-  itersquare f t
-
-let iterij f = 
-  Array.iteri (fun i row -> Array.iteri (fun j -> f i j) row)
 
 let map trans arr =
   let s = Array.length arr in
   Array.init s (fun i -> Array.init s (fun j -> trans arr.(i).(j)))
 
+(*
 let map_mod trans arr =
   iterij (fun i j e -> arr.(i).(j) <- trans e) arr
+*)
 
 let on_board t p = in_size (size t) p
 
-let all_pos s = walk (fun p acc -> PosS.add p acc) s PosS.empty
+let all_pos b = Enum.fold (fun acc (p,_) -> PosS.add p acc) PosS.empty (enum b)
   
-let init_matrix_pos s f = 
-  Array.init s (fun i -> Array.init s (fun j -> f (pos_of_pair s (i,j))))
-
 let empty bs = 
   let s = int_of_boardsize bs in 
   {
-   game_board = Array.make_matrix s s `Empty;
-   group_board = init_matrix_pos s (Group.eunit s);
+   game_board = make_board s `Empty;
+   group_board = make_board_pos s (Group.eunit s);
    groups = None;
  }
 
-let duparr arr = 
-  let s = Array.length arr in
-  Array.init s (fun i -> Array.copy arr.(i))
 
 let duplicate t = {t with 
-		     game_board=duparr t.game_board;
-		     group_board=duparr t.group_board}
+		     game_board=clone_board t.game_board;
+		     group_board=clone_board t.group_board}
 
 (* Board printing functions *)
 let square_to_string s pos_to_string = 
@@ -281,8 +256,7 @@ let square_to_string s pos_to_string =
     append (string_of_int i);
     append " ";
     for j = 0 to s-1 do
-      let e = pos_to_string i j in
-      append e;
+      append (pos_to_string i j);
       append " ";
     done;
     append "\n";
@@ -377,19 +351,15 @@ let make_move t p c =
   in
   (t, k_count)
 
-let stones board =
-  let countfun _ _ acc = acc + 1 in
-  walkstones board countfun 0
+let stones t = enum_stones t |> Enum.count
 
 (* p,color list *)
-let to_list t = 
-  let collect p c acc = (p, c) :: acc in
-  walkstones t collect []
+let to_list t = enum_stones t |> List.of_enum
 
 let hash t =
   let size = size t in
-  let hashwalk p _ acc = (int_of_pos size p) + acc in
-  walkstones t hashwalk 0
+  let hashwalk acc (p,_) = (int_of_pos size p) + acc in
+  enum_stones t |> Enum.fold hashwalk 0
 
 let equal t1 t2 = t1.game_board = t2.game_board
     
@@ -454,7 +424,7 @@ let make_dragons t gl =
 let finalize t =
   match t.groups with
     None -> 
-      let gl = make_groups t [] (all_pos (size t)) in
+      let gl = make_groups t [] (all_pos t) in
       t.groups <- Some gl;
       gl
   | Some gl -> 
